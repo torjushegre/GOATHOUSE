@@ -11,9 +11,16 @@ const cards = [
   {
     to: "/bingo",
     icon: "🎯",
-    title: "Tur-Bingo",
-    description: "Fullfør utfordringene på brettet ditt!",
+    title: "Alicante Bingo",
+    description: "Fullfør Alicante-utfordringene på brettet ditt!",
     gradient: "from-amber-600/20 to-orange-600/20 border-amber-700/50",
+  },
+  {
+    to: "/players",
+    icon: "👥",
+    title: "Spillere",
+    description: "Administrer spillere og bingo-deltakere",
+    gradient: "from-purple-600/20 to-fuchsia-600/20 border-purple-700/50",
   },
 ] as const;
 

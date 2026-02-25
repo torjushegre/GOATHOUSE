@@ -4,6 +4,7 @@ const tabs = [
   { to: "/", label: "Hjem", icon: "🏠" },
   { to: "/ice", label: "ICE", icon: "🧊" },
   { to: "/bingo", label: "Bingo", icon: "🎯" },
+  { to: "/players", label: "Spillere", icon: "👥" },
 ] as const;
 
 export function Layout() {
