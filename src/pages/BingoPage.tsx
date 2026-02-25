@@ -86,7 +86,7 @@ function CellContent({
         setDraft(cell.challenge_text);
         setEditing(true);
       }}
-      className={`flex h-full w-full items-center justify-center p-1 text-center text-[10px] leading-tight transition-all duration-300 ${
+      className={`flex h-full w-full items-center justify-center overflow-y-auto break-words p-1 text-center text-[10px] leading-tight transition-all duration-300 ${
         cell.completed
           ? "scale-95 text-green-300 line-through"
           : "text-gray-200 hover:bg-gray-700/50"
@@ -177,7 +177,7 @@ export function BingoPage() {
               cell ? (
                 <div
                   key={cell.id}
-                  className={`flex aspect-square min-h-[44px] min-w-[44px] items-center justify-center overflow-hidden rounded-md transition-all duration-300 ${
+                  className={`flex min-h-[56px] min-w-[44px] items-center justify-center overflow-hidden rounded-md transition-all duration-300 ${
                     cell.completed
                       ? "border-2 border-green-500/60 bg-green-600/20 shadow-md shadow-green-900/30"
                       : cell.challenge_text
@@ -194,7 +194,7 @@ export function BingoPage() {
               ) : (
                 <div
                   key={Math.random()}
-                  className="aspect-square rounded-md bg-gray-800/30"
+                  className="min-h-[56px] rounded-md bg-gray-800/30"
                 />
               ),
             )}

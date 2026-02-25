@@ -1,4 +1,9 @@
 import { Link } from "react-router-dom";
+import { usePlayers } from "../hooks/usePlayers";
+import { useIceEvents } from "../hooks/useIceEvents";
+import { useIceScores } from "../hooks/useIceScores";
+import { useShoppingList } from "../hooks/useShoppingList";
+import { useWashSchedule, getCurrentWeek } from "../hooks/useWashSchedule";
 
 const cards = [
   {
@@ -38,6 +43,63 @@ const cards = [
   },
 ] as const;
 
+function DashboardWidgets() {
+  const { players } = usePlayers();
+  const { events } = useIceEvents();
+  const scores = useIceScores(players, events);
+  const { items } = useShoppingList();
+  const { week, year } = getCurrentWeek();
+  const { weeks } = useWashSchedule(year);
+
+  const leader = scores[0];
+  const uncheckedCount = items.filter((i) => !i.checked).length;
+  const currentWashWeek = weeks.find((w) => w.week_number === week);
+  const washPlayer = currentWashWeek
+    ? players.find((p) => p.id === currentWashWeek.player_id)
+    : undefined;
+
+  return (
+    <div className="grid w-full grid-cols-3 gap-3">
+      <Link
+        to="/ice"
+        className="flex flex-col items-center gap-1 rounded-xl border border-cyan-700/40 bg-cyan-600/10 px-2 py-3 transition-transform active:scale-95"
+      >
+        <span className="text-lg">🥇</span>
+        <span className="text-sm font-bold text-gray-100 truncate max-w-full">
+          {leader ? leader.player.name : "—"}
+        </span>
+        <span className="text-[10px] text-gray-500">
+          {leader ? `${leader.score > 0 ? "+" : ""}${leader.score} poeng` : "Ingen data"}
+        </span>
+      </Link>
+
+      <Link
+        to="/handleliste"
+        className="flex flex-col items-center gap-1 rounded-xl border border-green-700/40 bg-green-600/10 px-2 py-3 transition-transform active:scale-95"
+      >
+        <span className="text-lg">🛒</span>
+        <span className="text-sm font-bold text-gray-100">
+          {uncheckedCount}
+        </span>
+        <span className="text-[10px] text-gray-500">
+          {uncheckedCount === 1 ? "vare igjen" : "varer igjen"}
+        </span>
+      </Link>
+
+      <Link
+        to="/vask"
+        className="flex flex-col items-center gap-1 rounded-xl border border-teal-700/40 bg-teal-600/10 px-2 py-3 transition-transform active:scale-95"
+      >
+        <span className="text-lg">🧹</span>
+        <span className="text-sm font-bold text-gray-100 truncate max-w-full">
+          {washPlayer ? washPlayer.name : "Ingen"}
+        </span>
+        <span className="text-[10px] text-gray-500">vasker uke {week}</span>
+      </Link>
+    </div>
+  );
+}
+
 export function HomePage() {
   return (
     <div className="mx-auto flex max-w-md flex-col items-center gap-6 pt-8">
@@ -45,6 +107,8 @@ export function HomePage() {
         GOATHOUSE
       </h1>
       <p className="text-sm text-gray-500">Hva skjer i huset?</p>
+
+      <DashboardWidgets />
 
       <div className="flex w-full flex-col gap-4">
         {cards.map((card) => (
