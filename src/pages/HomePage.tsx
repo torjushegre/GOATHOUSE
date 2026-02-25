@@ -30,7 +30,7 @@ export function HomePage() {
       <h1 className="text-3xl font-extrabold tracking-tight text-amber-400">
         GOATHOUSE
       </h1>
-      <p className="text-sm text-gray-500">Hva skjer i kollektivet?</p>
+      <p className="text-sm text-gray-500">Hva skjer i huset?</p>
 
       <div className="flex w-full flex-col gap-4">
         {cards.map((card) => (
