@@ -4,7 +4,9 @@ const tabs = [
   { to: "/", label: "Hjem", icon: "🏠" },
   { to: "/ice", label: "ICE", icon: "🧊" },
   { to: "/bingo", label: "Bingo", icon: "🎯" },
-  { to: "/players", label: "Spillere", icon: "👥" },
+  { to: "/players", label: "Gutta", icon: "👥" },
+  { to: "/handleliste", label: "Handle", icon: "🛒" },
+  { to: "/vask", label: "Vask", icon: "🧹" },
 ] as const;
 
 export function Layout() {
@@ -21,12 +23,12 @@ export function Layout() {
             to={tab.to}
             end={tab.to === "/"}
             className={({ isActive }) =>
-              `flex flex-1 flex-col items-center gap-0.5 py-2 text-xs transition-colors ${
+              `flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] transition-colors ${
                 isActive ? "text-amber-400" : "text-gray-500"
               }`
             }
           >
-            <span className="text-lg">{tab.icon}</span>
+            <span className="text-base">{tab.icon}</span>
             {tab.label}
           </NavLink>
         ))}

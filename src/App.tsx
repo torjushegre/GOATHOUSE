@@ -4,6 +4,8 @@ import { HomePage } from "./pages/HomePage";
 import { IcePage } from "./pages/IcePage";
 import { BingoPage } from "./pages/BingoPage";
 import { PlayersPage } from "./pages/PlayersPage";
+import { ShoppingListPage } from "./pages/ShoppingListPage";
+import { WashPage } from "./pages/WashPage";
 
 export function App() {
   return (
@@ -14,6 +16,8 @@ export function App() {
           <Route path="ice" element={<IcePage />} />
           <Route path="bingo" element={<BingoPage />} />
           <Route path="players" element={<PlayersPage />} />
+          <Route path="handleliste" element={<ShoppingListPage />} />
+          <Route path="vask" element={<WashPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

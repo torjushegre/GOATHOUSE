@@ -70,7 +70,7 @@ export function PlayersPage() {
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4">
       <h1 className="text-center text-2xl font-bold text-amber-400">
-        Spillere
+        Gutta
       </h1>
 
       {/* Add form */}

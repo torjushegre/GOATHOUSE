@@ -29,3 +29,26 @@ export interface BingoCell {
   completed_at: string | null;
   created_at: string;
 }
+
+export interface ShoppingItem {
+  id: string;
+  text: string;
+  checked: boolean;
+  created_at: string;
+}
+
+export interface WashWeek {
+  id: string;
+  week_number: number;
+  year: number;
+  player_id: string | null;
+  created_at: string;
+}
+
+export interface WashTask {
+  id: string;
+  wash_week_id: string;
+  task_index: number;
+  completed: boolean;
+  created_at: string;
+}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import type { IceEvent } from "../types/database";
 
@@ -25,6 +25,13 @@ export function useIceEvents() {
           setEvents((prev) => [payload.new, ...prev]);
         },
       )
+      .on<IceEvent>(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "ice_events" },
+        (payload) => {
+          setEvents((prev) => prev.filter((e) => e.id !== payload.old.id));
+        },
+      )
       .subscribe();
 
     return () => {
@@ -32,5 +39,10 @@ export function useIceEvents() {
     };
   }, []);
 
-  return { events, loading };
+  const deleteEvent = useCallback(async (eventId: string) => {
+    setEvents((prev) => prev.filter((e) => e.id !== eventId));
+    await supabase.from("ice_events").delete().eq("id", eventId);
+  }, []);
+
+  return { events, loading, deleteEvent };
 }

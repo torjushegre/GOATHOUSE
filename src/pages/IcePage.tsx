@@ -2,7 +2,7 @@ import { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { usePlayers } from "../hooks/usePlayers";
 import { useIceEvents } from "../hooks/useIceEvents";
-import { useIceScores } from "../hooks/useIceScores";
+import { useIceScores, type PlayerScore } from "../hooks/useIceScores";
 import { PlayerPicker } from "../components/PlayerPicker";
 
 function timeAgo(dateStr: string): string {
@@ -18,9 +18,49 @@ function timeAgo(dateStr: string): string {
   return `${days}d siden`;
 }
 
+function scoreColor(score: number) {
+  if (score > 0) return "text-green-400";
+  if (score < 0) return "text-red-400";
+  return "text-gray-400";
+}
+
+function PodiumBlock({
+  s,
+  rank,
+  height,
+  medal,
+}: {
+  s: PlayerScore;
+  rank: number;
+  height: string;
+  medal: string;
+}) {
+  return (
+    <div className="flex flex-1 flex-col items-center gap-1">
+      <span className="text-2xl">{medal}</span>
+      <span className="text-sm font-bold text-gray-100">{s.player.name}</span>
+      <span className={`text-lg font-extrabold ${scoreColor(s.score)}`}>
+        {s.score}
+      </span>
+      <span className="text-[10px] text-gray-500">
+        +{s.placed} / -{s.received}
+      </span>
+      <div
+        className={`${height} w-full rounded-t-lg ${
+          rank === 1
+            ? "bg-amber-500/30"
+            : rank === 2
+              ? "bg-gray-400/20"
+              : "bg-amber-700/20"
+        }`}
+      />
+    </div>
+  );
+}
+
 export function IcePage() {
   const { players, loading: playersLoading } = usePlayers();
-  const { events, loading: eventsLoading } = useIceEvents();
+  const { events, loading: eventsLoading, deleteEvent } = useIceEvents();
   const scores = useIceScores(players, events);
 
   const [placerId, setPlacerId] = useState("");
@@ -43,9 +83,18 @@ export function IcePage() {
     setSubmitting(false);
   }
 
+  function handleDelete(eventId: string) {
+    if (!window.confirm("Slette denne icingen?")) return;
+    deleteEvent(eventId);
+  }
+
   if (playersLoading || eventsLoading) {
     return <p className="text-center text-gray-500">Laster...</p>;
   }
+
+  const top3 = scores.slice(0, 3);
+  const rest = scores.slice(3);
+  const hasPodium = scores.length >= 3;
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-6">
@@ -58,34 +107,67 @@ export function IcePage() {
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">
           Poengtavle
         </h2>
-        <div className="flex flex-col gap-2">
-          {scores.map((s, i) => (
-            <div
-              key={s.player.id}
-              className="flex items-center justify-between rounded-lg bg-gray-800 px-3 py-2"
-            >
-              <span className="flex items-center gap-2">
-                <span className="text-sm text-gray-500">#{i + 1}</span>
-                <span className="font-medium">{s.player.name}</span>
-              </span>
-              <span className="flex items-center gap-3">
-                <span className="text-xs text-green-400">+{s.placed}</span>
-                <span className="text-xs text-red-400">-{s.received}</span>
-                <span
-                  className={`min-w-[2rem] text-right font-bold ${
-                    s.score > 0
-                      ? "text-green-400"
-                      : s.score < 0
-                        ? "text-red-400"
-                        : "text-gray-400"
-                  }`}
-                >
-                  {s.score}
-                </span>
-              </span>
+
+        {hasPodium ? (
+          <>
+            {/* Podium: 2nd | 1st | 3rd */}
+            <div className="flex items-end gap-2">
+              <PodiumBlock s={top3[1]} rank={2} height="h-24" medal="🥈" />
+              <PodiumBlock s={top3[0]} rank={1} height="h-32" medal="🥇" />
+              <PodiumBlock s={top3[2]} rank={3} height="h-20" medal="🥉" />
             </div>
-          ))}
-        </div>
+
+            {/* Remaining players */}
+            {rest.length > 0 && (
+              <div className="mt-3 flex flex-col gap-2">
+                {rest.map((s, i) => (
+                  <div
+                    key={s.player.id}
+                    className="flex items-center justify-between rounded-lg bg-gray-800 px-3 py-2"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="text-sm text-gray-500">#{i + 4}</span>
+                      <span className="font-medium">{s.player.name}</span>
+                    </span>
+                    <span className="flex items-center gap-3">
+                      <span className="text-xs text-green-400">+{s.placed}</span>
+                      <span className="text-xs text-red-400">-{s.received}</span>
+                      <span
+                        className={`min-w-[2rem] text-right font-bold ${scoreColor(s.score)}`}
+                      >
+                        {s.score}
+                      </span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          /* Flat list fallback for <3 players */
+          <div className="flex flex-col gap-2">
+            {scores.map((s, i) => (
+              <div
+                key={s.player.id}
+                className="flex items-center justify-between rounded-lg bg-gray-800 px-3 py-2"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">#{i + 1}</span>
+                  <span className="font-medium">{s.player.name}</span>
+                </span>
+                <span className="flex items-center gap-3">
+                  <span className="text-xs text-green-400">+{s.placed}</span>
+                  <span className="text-xs text-red-400">-{s.received}</span>
+                  <span
+                    className={`min-w-[2rem] text-right font-bold ${scoreColor(s.score)}`}
+                  >
+                    {s.score}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Log icing form */}
@@ -154,8 +236,17 @@ export function IcePage() {
                       {playerMap.get(ev.victim_id) ?? "?"}
                     </span>
                   </span>
-                  <span className="text-xs text-gray-500">
-                    {timeAgo(ev.created_at)}
+                  <span className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">
+                      {timeAgo(ev.created_at)}
+                    </span>
+                    <button
+                      onClick={() => handleDelete(ev.id)}
+                      className="text-sm text-gray-600 transition-colors hover:text-red-400"
+                      title="Slett"
+                    >
+                      ✕
+                    </button>
                   </span>
                 </div>
                 {ev.comment && (

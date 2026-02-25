@@ -18,9 +18,23 @@ const cards = [
   {
     to: "/players",
     icon: "👥",
-    title: "Spillere",
-    description: "Administrer spillere og bingo-deltakere",
+    title: "Gutta",
+    description: "Administrer gutta og bingo-deltakere",
     gradient: "from-purple-600/20 to-fuchsia-600/20 border-purple-700/50",
+  },
+  {
+    to: "/handleliste",
+    icon: "🛒",
+    title: "Handleliste",
+    description: "Felles handleliste for huset",
+    gradient: "from-green-600/20 to-emerald-600/20 border-green-700/50",
+  },
+  {
+    to: "/vask",
+    icon: "🧹",
+    title: "Vaskeliste",
+    description: "Ukentlig vaskeplan og oppgaver",
+    gradient: "from-teal-600/20 to-cyan-600/20 border-teal-700/50",
   },
 ] as const;
 
