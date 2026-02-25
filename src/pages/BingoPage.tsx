@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { usePlayers } from "../hooks/usePlayers";
 import { useBingoBoard } from "../hooks/useBingoBoard";
 import type { BingoCell } from "../types/database";
@@ -28,51 +28,41 @@ function detectBingoLines(cells: BingoCell[]): number {
   return lines;
 }
 
-function CellContent({
+function useAutoFontSize(text: string, max = 12, min = 7) {
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !text) return;
+    const parent = el.parentElement;
+    if (!parent) return;
+
+    for (let size = max; size >= min; size--) {
+      el.style.fontSize = `${size}px`;
+      if (el.scrollHeight <= parent.clientHeight && el.scrollWidth <= parent.clientWidth) {
+        return;
+      }
+    }
+    el.style.fontSize = `${min}px`;
+  }, [text, max, min]);
+
+  return ref;
+}
+
+function BingoGridCell({
   cell,
-  onSetText,
-  onToggle,
+  onClick,
 }: {
   cell: BingoCell;
-  onSetText: (id: string, text: string) => void;
-  onToggle: (id: string, completed: boolean) => void;
+  onClick: (cell: BingoCell) => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-
-  if (editing) {
-    return (
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          onSetText(cell.id, draft.trim());
-          setEditing(false);
-        }}
-        className="flex h-full w-full flex-col items-center justify-center p-1"
-      >
-        <input
-          autoFocus
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={() => {
-            onSetText(cell.id, draft.trim());
-            setEditing(false);
-          }}
-          className="w-full rounded bg-gray-700 px-1 py-0.5 text-center text-xs text-gray-100 outline-none"
-          placeholder="Utfordring..."
-        />
-      </form>
-    );
-  }
+  const textRef = useAutoFontSize(cell.challenge_text);
 
   if (!cell.challenge_text) {
     return (
       <button
-        onClick={() => {
-          setDraft("");
-          setEditing(true);
-        }}
-        className="flex h-full w-full items-center justify-center text-gray-700 text-xl"
+        onClick={() => onClick(cell)}
+        className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl border border-dashed border-gray-700/30 bg-gray-800/20 text-xl text-gray-700 transition-colors hover:bg-gray-800/40"
       >
         +
       </button>
@@ -81,19 +71,100 @@ function CellContent({
 
   return (
     <button
-      onClick={() => onToggle(cell.id, cell.completed)}
-      onDoubleClick={() => {
-        setDraft(cell.challenge_text);
-        setEditing(true);
-      }}
-      className={`flex h-full w-full items-center justify-center overflow-y-auto break-words p-1 text-center text-[10px] leading-tight transition-all duration-300 ${
+      onClick={() => onClick(cell)}
+      className={`relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl p-1 text-center leading-tight transition-all duration-300 ${
         cell.completed
-          ? "scale-95 text-green-300 line-through"
-          : "text-gray-200 hover:bg-gray-700/50"
+          ? "border-2 border-green-500/60 bg-green-600/20 shadow-md shadow-green-900/30"
+          : "border border-gray-700 bg-gray-800 hover:bg-gray-700/50"
       }`}
     >
-      {cell.challenge_text}
+      <span
+        ref={textRef}
+        className={`break-words ${cell.completed ? "text-green-300" : "text-gray-200"}`}
+      >
+        {cell.challenge_text}
+      </span>
+      {cell.completed && (
+        <span className="absolute right-0.5 top-0.5 text-[10px] text-green-400">✓</span>
+      )}
     </button>
+  );
+}
+
+function CellEditModal({
+  cell,
+  onSave,
+  onClose,
+}: {
+  cell: BingoCell;
+  onSave: (text: string, completed: boolean) => void;
+  onClose: () => void;
+}) {
+  const [draft, setDraft] = useState(cell.challenge_text);
+  const [completed, setCompleted] = useState(cell.completed);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="mx-4 w-full max-w-sm rounded-2xl border border-gray-700 bg-gray-900 p-5">
+        <textarea
+          autoFocus
+          rows={3}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-100 outline-none focus:border-amber-500/50"
+          placeholder="Skriv utfordring..."
+        />
+
+        <div className="mt-3 flex items-center justify-between">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-300">
+            <button
+              type="button"
+              onClick={() => setCompleted(!completed)}
+              className={`flex h-5 w-5 items-center justify-center rounded border-2 text-xs transition-colors ${
+                completed
+                  ? "border-green-500 bg-green-500/20 text-green-400"
+                  : "border-gray-600"
+              }`}
+            >
+              {completed && "✓"}
+            </button>
+            Fullført
+          </label>
+        </div>
+
+        <div className="mt-4 flex items-center justify-between">
+          <button
+            onClick={() => {
+              onSave("", false);
+            }}
+            className="text-sm text-red-400 transition-colors hover:text-red-300"
+          >
+            Slett tekst
+          </button>
+          <button
+            onClick={() => {
+              onSave(draft.trim(), completed);
+            }}
+            className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-gray-950 transition-colors hover:bg-amber-400"
+          >
+            Lagre
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -101,6 +172,7 @@ export function BingoPage() {
   const { players, loading: playersLoading } = usePlayers();
   const bingoPlayers = players.filter((p) => p.is_bingo_participant);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [editingCell, setEditingCell] = useState<BingoCell | null>(null);
 
   const activeId = selectedId ?? bingoPlayers[0]?.id ?? null;
 
@@ -120,6 +192,17 @@ export function BingoPage() {
   const completedCount = cells.filter((c) => c.completed).length;
   const pct = cells.length > 0 ? Math.round((completedCount / 25) * 100) : 0;
   const bingoLines = detectBingoLines(cells);
+
+  const handleSaveCell = async (text: string, completed: boolean) => {
+    if (!editingCell) return;
+    if (text !== editingCell.challenge_text) {
+      await updateCellText(editingCell.id, text);
+    }
+    if (completed !== editingCell.completed) {
+      await toggleCellCompleted(editingCell.id, editingCell.completed);
+    }
+    setEditingCell(null);
+  };
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4">
@@ -172,38 +255,35 @@ export function BingoPage() {
           )}
 
           {/* 5x5 Grid */}
-          <div className="grid grid-cols-5 gap-1">
+          <div className="grid grid-cols-5 gap-1.5">
             {grid.flat().map((cell) =>
               cell ? (
-                <div
+                <BingoGridCell
                   key={cell.id}
-                  className={`flex min-h-[56px] min-w-[44px] items-center justify-center overflow-hidden rounded-md transition-all duration-300 ${
-                    cell.completed
-                      ? "border-2 border-green-500/60 bg-green-600/20 shadow-md shadow-green-900/30"
-                      : cell.challenge_text
-                        ? "border border-gray-700 bg-gray-800"
-                        : "border border-gray-800/50 bg-gray-800/40"
-                  }`}
-                >
-                  <CellContent
-                    cell={cell}
-                    onSetText={updateCellText}
-                    onToggle={toggleCellCompleted}
-                  />
-                </div>
+                  cell={cell}
+                  onClick={setEditingCell}
+                />
               ) : (
                 <div
                   key={Math.random()}
-                  className="min-h-[56px] rounded-md bg-gray-800/30"
+                  className="aspect-square rounded-xl bg-gray-800/20 border border-dashed border-gray-700/30"
                 />
               ),
             )}
           </div>
 
           <p className="text-center text-xs text-gray-600">
-            Trykk for å markere fullført. Dobbeltrykk for å redigere.
+            Trykk en celle for å redigere eller fullføre.
           </p>
         </>
+      )}
+
+      {editingCell && (
+        <CellEditModal
+          cell={editingCell}
+          onSave={handleSaveCell}
+          onClose={() => setEditingCell(null)}
+        />
       )}
     </div>
   );

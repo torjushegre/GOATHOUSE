@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePlayers } from "../hooks/usePlayers";
 import {
   useWashSchedule,
@@ -6,11 +6,111 @@ import {
   WASH_TASKS,
 } from "../hooks/useWashSchedule";
 
+function WeekCell({
+  weekNumber,
+  isCurrent,
+  assigneeName,
+  onClick,
+}: {
+  weekNumber: number;
+  isCurrent: boolean;
+  assigneeName: string | null;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex flex-col items-center justify-center rounded-lg px-1 py-1.5 text-center transition-colors ${
+        isCurrent
+          ? "bg-amber-500/20 ring-1 ring-amber-500/60"
+          : "bg-gray-800/50 hover:bg-gray-800"
+      }`}
+    >
+      <span
+        className={`text-[11px] font-semibold ${isCurrent ? "text-amber-400" : "text-gray-400"}`}
+      >
+        {weekNumber}
+      </span>
+      <span className="truncate text-[10px] text-gray-500 max-w-full">
+        {assigneeName ?? "—"}
+      </span>
+    </button>
+  );
+}
+
+function WeekAssignModal({
+  weekNumber,
+  currentPlayerId,
+  players,
+  onAssign,
+  onClose,
+}: {
+  weekNumber: number;
+  currentPlayerId: string | null | undefined;
+  players: { id: string; name: string }[];
+  onAssign: (weekNumber: number, playerId: string | null) => void;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="mx-4 w-full max-w-sm rounded-2xl border border-gray-700 bg-gray-900 p-5">
+        <h3 className="mb-4 text-lg font-bold text-gray-100">Uke {weekNumber}</h3>
+
+        <div className="flex flex-col gap-2">
+          {players.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => {
+                onAssign(weekNumber, p.id);
+                onClose();
+              }}
+              className={`rounded-lg px-4 py-2.5 text-sm font-medium transition-colors ${
+                currentPlayerId === p.id
+                  ? "bg-amber-500 text-gray-950"
+                  : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+              }`}
+            >
+              {p.name}
+            </button>
+          ))}
+          <button
+            onClick={() => {
+              onAssign(weekNumber, null);
+              onClose();
+            }}
+            className={`rounded-lg px-4 py-2.5 text-sm font-medium transition-colors ${
+              currentPlayerId === null
+                ? "bg-amber-500 text-gray-950"
+                : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+            }`}
+          >
+            Ferie 🏖️
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function WashPage() {
   const { week: currentWeek, year: currentYear } = getCurrentWeek();
   const [year] = useState(currentYear);
   const { players, loading: playersLoading } = usePlayers();
   const { weeks, loading, assignWeek, toggleTask } = useWashSchedule(year);
+  const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
 
   const playerMap = new Map(players.map((p) => [p.id, p.name]));
 
@@ -28,6 +128,12 @@ export function WashPage() {
   if (loading || playersLoading) {
     return <p className="text-center text-gray-500">Laster...</p>;
   }
+
+  const selectedWeekData = selectedWeek
+    ? weeks.find((w) => w.week_number === selectedWeek) ?? null
+    : null;
+
+  const quarters = ["Q1", "Q2", "Q3", "Q4"];
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4">
@@ -101,97 +207,58 @@ export function WashPage() {
         )}
       </section>
 
-      {/* Full year schedule */}
+      {/* Full year calendar grid */}
       <section className="rounded-xl bg-gray-900 p-4">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">
           Årsplan {year}
         </h2>
-        <div className="flex max-h-80 flex-col gap-1 overflow-y-auto">
-          {Array.from({ length: 52 }, (_, i) => i + 1).map((wn) => {
-            const weekData = weeks.find((w) => w.week_number === wn);
-            const isCurrent = wn === currentWeek;
-            const assignee = weekData
-              ? weekData.player_id
-                ? playerMap.get(weekData.player_id) ?? "Ukjent"
-                : "Ferie 🏖️"
-              : null;
 
-            return (
-              <WeekRow
-                key={wn}
-                weekNumber={wn}
-                isCurrent={isCurrent}
-                assignee={assignee}
-                players={players}
-                onAssign={(playerId) => assignWeek(wn, playerId)}
-              />
-            );
-          })}
+        {/* Quarter headers */}
+        <div className="mb-1 grid grid-cols-4 gap-1">
+          {quarters.map((q) => (
+            <div key={q} className="text-center text-xs font-semibold text-gray-500">
+              {q}
+            </div>
+          ))}
+        </div>
+
+        {/* 4x13 calendar grid */}
+        <div className="grid grid-cols-4 gap-1">
+          {Array.from({ length: 13 }, (_, row) =>
+            Array.from({ length: 4 }, (_, col) => {
+              const wn = col * 13 + row + 1;
+              if (wn > 52) return <div key={`empty-${col}-${row}`} />;
+              const weekData = weeks.find((w) => w.week_number === wn);
+              const assigneeName = weekData
+                ? weekData.player_id
+                  ? playerMap.get(weekData.player_id) ?? "?"
+                  : "Ferie"
+                : null;
+
+              return (
+                <WeekCell
+                  key={wn}
+                  weekNumber={wn}
+                  isCurrent={wn === currentWeek}
+                  assigneeName={assigneeName}
+                  onClick={() => setSelectedWeek(wn)}
+                />
+              );
+            }),
+          )}
         </div>
       </section>
-    </div>
-  );
-}
 
-function WeekRow({
-  weekNumber,
-  isCurrent,
-  assignee,
-  players,
-  onAssign,
-}: {
-  weekNumber: number;
-  isCurrent: boolean;
-  assignee: string | null;
-  players: { id: string; name: string }[];
-  onAssign: (playerId: string | null) => void;
-}) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div
-      className={`rounded-lg px-3 py-2 ${
-        isCurrent ? "bg-amber-500/10 ring-1 ring-amber-500/40" : "bg-gray-800/50"
-      }`}
-    >
-      <div
-        className="flex cursor-pointer items-center justify-between"
-        onClick={() => setOpen(!open)}
-      >
-        <span className="text-sm">
-          <span className={`font-semibold ${isCurrent ? "text-amber-400" : "text-gray-300"}`}>
-            Uke {weekNumber}
-          </span>
-        </span>
-        <span className="text-sm text-gray-400">
-          {assignee ?? "—"}
-        </span>
-      </div>
-
-      {open && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {players.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => {
-                onAssign(p.id);
-                setOpen(false);
-              }}
-              className="rounded bg-gray-700 px-2 py-1 text-xs text-gray-300 transition-colors hover:bg-amber-500/20 hover:text-amber-400"
-            >
-              {p.name}
-            </button>
-          ))}
-          <button
-            onClick={() => {
-              onAssign(null);
-              setOpen(false);
-            }}
-            className="rounded bg-gray-700 px-2 py-1 text-xs text-gray-300 transition-colors hover:bg-amber-500/20 hover:text-amber-400"
-          >
-            Ferie 🏖️
-          </button>
-        </div>
+      {selectedWeek && (
+        <WeekAssignModal
+          weekNumber={selectedWeek}
+          currentPlayerId={selectedWeekData ? selectedWeekData.player_id : undefined}
+          players={players}
+          onAssign={(wn, pid) => {
+            assignWeek(wn, pid);
+          }}
+          onClose={() => setSelectedWeek(null)}
+        />
       )}
     </div>
   );
