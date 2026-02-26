@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { usePlayers } from "../hooks/usePlayers";
 import { useIceEvents } from "../hooks/useIceEvents";
 import { useIceScores, type PlayerScore } from "../hooks/useIceScores";
 import { PlayerPicker } from "../components/PlayerPicker";
+import type { IceEvent } from "../types/database";
 
 function timeAgo(dateStr: string): string {
   const seconds = Math.floor(
@@ -58,15 +59,106 @@ function PodiumBlock({
   );
 }
 
+function IceEditModal({
+  event,
+  players,
+  onSave,
+  onClose,
+}: {
+  event: IceEvent;
+  players: { id: string; name: string }[];
+  onSave: (eventId: string, fields: { placer_id: string; victim_id: string; comment: string | null }) => void;
+  onClose: () => void;
+}) {
+  const [placerId, setPlacerId] = useState(event.placer_id);
+  const [victimId, setVictimId] = useState(event.victim_id);
+  const [comment, setComment] = useState(event.comment ?? "");
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  function handleSave() {
+    if (!placerId || !victimId || placerId === victimId) return;
+    onSave(event.id, {
+      placer_id: placerId,
+      victim_id: victimId,
+      comment: comment.trim() || null,
+    });
+    onClose();
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="mx-4 w-full max-w-sm rounded-2xl border border-gray-700 bg-gray-900 p-5">
+        <h3 className="mb-4 text-lg font-bold text-gray-100">Rediger icing</h3>
+
+        <div className="flex flex-col gap-3">
+          <PlayerPicker
+            label="Icer (den som legger)"
+            players={players}
+            value={placerId}
+            onChange={setPlacerId}
+            excludeId={victimId}
+          />
+          <PlayerPicker
+            label="Offer (den som drikker)"
+            players={players}
+            value={victimId}
+            onChange={setVictimId}
+            excludeId={placerId}
+          />
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-300">
+            Kommentar (valgfritt)
+            <input
+              type="text"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="F.eks. gjemt i sekken..."
+              className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-gray-100 placeholder:text-gray-600"
+            />
+          </label>
+
+          <div className="flex gap-2">
+            <button
+              onClick={onClose}
+              className="flex-1 rounded-lg bg-gray-800 py-2.5 font-semibold text-gray-300 transition-colors hover:bg-gray-700"
+            >
+              Avbryt
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!placerId || !victimId || placerId === victimId}
+              className="flex-1 rounded-lg bg-amber-500 py-2.5 font-semibold text-gray-950 transition-colors hover:bg-amber-400 disabled:opacity-40"
+            >
+              Lagre
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function IcePage() {
   const { players, loading: playersLoading } = usePlayers();
-  const { events, loading: eventsLoading, deleteEvent } = useIceEvents();
+  const { events, loading: eventsLoading, deleteEvent, updateEvent } = useIceEvents();
   const scores = useIceScores(players, events);
 
   const [placerId, setPlacerId] = useState("");
   const [victimId, setVictimId] = useState("");
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<IceEvent | null>(null);
 
   const playerMap = new Map(players.map((p) => [p.id, p.name]));
 
@@ -241,6 +333,13 @@ export function IcePage() {
                       {timeAgo(ev.created_at)}
                     </span>
                     <button
+                      onClick={() => setEditingEvent(ev)}
+                      className="text-sm text-gray-600 transition-colors hover:text-amber-400"
+                      title="Rediger"
+                    >
+                      ✎
+                    </button>
+                    <button
                       onClick={() => handleDelete(ev.id)}
                       className="text-sm text-gray-600 transition-colors hover:text-red-400"
                       title="Slett"
@@ -259,6 +358,15 @@ export function IcePage() {
           </div>
         )}
       </section>
+
+      {editingEvent && (
+        <IceEditModal
+          event={editingEvent}
+          players={players}
+          onSave={(eventId, fields) => updateEvent(eventId, fields)}
+          onClose={() => setEditingEvent(null)}
+        />
+      )}
     </div>
   );
 }

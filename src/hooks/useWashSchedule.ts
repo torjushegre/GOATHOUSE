@@ -4,9 +4,9 @@ import type { WashWeek, WashTask } from "../types/database";
 
 export const WASH_TASKS = [
   "Støvsuge hele huset",
-  "Vaske kjøkkenet og benkene",
-  "Moppe gulvene og badet",
-  "Vaske badet",
+  "Vaske kjøkkenet og kjøkkenbenk + stuebord",
+  "Moppe gulvene, inkludert badet",
+  "Vaske toalett, speil og vask på badene",
   "Tørke støv i vinduskarmer",
 ] as const;
 
