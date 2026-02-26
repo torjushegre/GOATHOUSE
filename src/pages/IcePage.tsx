@@ -4,7 +4,7 @@ import { usePlayers } from "../hooks/usePlayers";
 import { useIceEvents } from "../hooks/useIceEvents";
 import { useIceScores, type PlayerScore } from "../hooks/useIceScores";
 import { PlayerPicker } from "../components/PlayerPicker";
-import type { IceEvent } from "../types/database";
+import type { IceEvent, Player } from "../types/database";
 
 function timeAgo(dateStr: string): string {
   const seconds = Math.floor(
@@ -66,7 +66,7 @@ function IceEditModal({
   onClose,
 }: {
   event: IceEvent;
-  players: { id: string; name: string }[];
+  players: Player[];
   onSave: (eventId: string, fields: { placer_id: string; victim_id: string; comment: string | null }) => void;
   onClose: () => void;
 }) {
