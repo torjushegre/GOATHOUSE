@@ -21,13 +21,6 @@ const cards = [
     gradient: "from-amber-600/20 to-orange-600/20 border-amber-700/50",
   },
   {
-    to: "/players",
-    icon: "👥",
-    title: "Gutta",
-    description: "Administrer gutta og bingo-deltakere",
-    gradient: "from-purple-600/20 to-fuchsia-600/20 border-purple-700/50",
-  },
-  {
     to: "/handleliste",
     icon: "🛒",
     title: "Handleliste",
@@ -40,6 +33,13 @@ const cards = [
     title: "Vaskeliste",
     description: "Ukentlig vaskeplan og oppgaver",
     gradient: "from-teal-600/20 to-cyan-600/20 border-teal-700/50",
+  },
+  {
+    to: "/players",
+    icon: "👥",
+    title: "Gutta",
+    description: "Administrer gutta og bingo-deltakere",
+    gradient: "from-purple-600/20 to-fuchsia-600/20 border-purple-700/50",
   },
 ] as const;
 
