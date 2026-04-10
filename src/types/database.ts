@@ -13,9 +13,18 @@ export interface IceEvent {
   created_at: string;
 }
 
+export interface BingoGame {
+  id: string;
+  name: string;
+  size: 4 | 5;
+  created_at: string;
+  archived_at: string | null;
+}
+
 export interface BingoBoard {
   id: string;
   player_id: string;
+  game_id: string;
   created_at: string;
 }
 

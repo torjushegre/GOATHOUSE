@@ -1,29 +1,30 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import type { Player } from "../types/database";
+import { createBingoBoardWithCells } from "../lib/bingo";
+import type { BingoGame, Player } from "../types/database";
 
-async function createBingoBoard(playerId: string) {
-  const { data: board, error } = await supabase
-    .from("bingo_boards")
-    .insert({ player_id: playerId })
-    .select()
-    .single();
+// Find the most recently created non-archived game, or null if there is none.
+async function fetchActiveGame(): Promise<BingoGame | null> {
+  const { data } = await supabase
+    .from("bingo_games")
+    .select("*")
+    .is("archived_at", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return (data as BingoGame) ?? null;
+}
 
-  if (error || !board) throw error;
-
-  const cells = Array.from({ length: 25 }, (_, i) => ({
-    board_id: board.id,
-    row: Math.floor(i / 5),
-    col: i % 5,
-    challenge_text: "",
-    completed: false,
-  }));
-
-  const { error: cellError } = await supabase
-    .from("bingo_cells")
-    .insert(cells);
-
-  if (cellError) throw cellError;
+// Create a board for the player on the current active game, if one exists.
+// Archived games are intentionally left alone so history stays frozen.
+async function seedBoardForActiveGame(playerId: string) {
+  const activeGame = await fetchActiveGame();
+  if (!activeGame) return;
+  await createBingoBoardWithCells({
+    playerId,
+    gameId: activeGame.id,
+    size: activeGame.size,
+  });
 }
 
 export function usePlayers() {
@@ -51,7 +52,7 @@ export function usePlayers() {
         .single();
 
       if (error) throw error;
-      if (data && isBingo) await createBingoBoard(data.id);
+      if (data && isBingo) await seedBoardForActiveGame(data.id);
       await refetch();
     },
     [refetch],
@@ -62,7 +63,6 @@ export function usePlayers() {
       id: string,
       updates: { name?: string; is_bingo_participant?: boolean },
     ) => {
-      // Check current state to detect bingo toggle
       const current = players.find((p) => p.id === id);
 
       const { error } = await supabase
@@ -72,22 +72,34 @@ export function usePlayers() {
 
       if (error) throw error;
 
-      // Bingo toggled ON → create board + cells
+      // Bingo toggled ON → create board on the active game only
       if (
         updates.is_bingo_participant === true &&
         current &&
         !current.is_bingo_participant
       ) {
-        await createBingoBoard(id);
+        await seedBoardForActiveGame(id);
       }
 
-      // Bingo toggled OFF → delete board (cascade handles cells)
+      // Bingo toggled OFF → remove only boards on active (non-archived) games.
+      // Archived games keep their historical boards intact.
       if (
         updates.is_bingo_participant === false &&
         current &&
         current.is_bingo_participant
       ) {
-        await supabase.from("bingo_boards").delete().eq("player_id", id);
+        const { data: activeGames } = await supabase
+          .from("bingo_games")
+          .select("id")
+          .is("archived_at", null);
+        const activeIds = (activeGames ?? []).map((g) => g.id);
+        if (activeIds.length > 0) {
+          await supabase
+            .from("bingo_boards")
+            .delete()
+            .eq("player_id", id)
+            .in("game_id", activeIds);
+        }
       }
 
       await refetch();
@@ -103,7 +115,7 @@ export function usePlayers() {
         .delete()
         .or(`placer_id.eq.${id},victim_id.eq.${id}`);
 
-      // Delete bingo board (cascade handles cells)
+      // Delete all bingo boards for this player (cascade handles cells)
       await supabase.from("bingo_boards").delete().eq("player_id", id);
 
       // Delete the player

@@ -2,13 +2,16 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import type { BingoBoard, BingoCell } from "../types/database";
 
-export function useBingoBoard(playerId: string | null) {
+export function useBingoBoard(
+  playerId: string | null,
+  gameId: string | null,
+) {
   const [board, setBoard] = useState<BingoBoard | null>(null);
   const [cells, setCells] = useState<BingoCell[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!playerId) {
+    if (!playerId || !gameId) {
       setBoard(null);
       setCells([]);
       setLoading(false);
@@ -21,6 +24,7 @@ export function useBingoBoard(playerId: string | null) {
       .from("bingo_boards")
       .select("*")
       .eq("player_id", playerId)
+      .eq("game_id", gameId)
       .single()
       .then(({ data: boardData }) => {
         if (!boardData) {
@@ -40,7 +44,7 @@ export function useBingoBoard(playerId: string | null) {
             setLoading(false);
           });
       });
-  }, [playerId]);
+  }, [playerId, gameId]);
 
   // Realtime subscription for cell changes
   useEffect(() => {
