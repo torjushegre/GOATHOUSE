@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePlayers } from "../hooks/usePlayers";
 import { useBingoBoard } from "../hooks/useBingoBoard";
-import { useBingoGames } from "../hooks/useBingoGames";
+import { useBingoGames, useGameBoardPlayerIds } from "../hooks/useBingoGames";
 import type { BingoCell, BingoGame } from "../types/database";
 
 function detectBingoLines(cells: BingoCell[], size: number): number {
@@ -9,7 +9,12 @@ function detectBingoLines(cells: BingoCell[], size: number): number {
     Array.from({ length: size }, () => false),
   );
   for (const c of cells) {
-    if (c.completed) grid[c.row][c.col] = true;
+    // Defensive: stale cells from a larger board (e.g. mid-transition
+    // between a 5x5 archived game and a 4x4 active game) must not write
+    // out-of-bounds — doing so throws and crashes the whole page.
+    if (c.completed && c.row < size && c.col < size) {
+      grid[c.row][c.col] = true;
+    }
   }
 
   let lines = 0;
@@ -329,8 +334,6 @@ export function BingoPage() {
     renameGame,
   } = useBingoGames();
 
-  const bingoPlayers = players.filter((p) => p.is_bingo_participant);
-
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [editingCell, setEditingCell] = useState<BingoCell | null>(null);
@@ -348,13 +351,48 @@ export function BingoPage() {
     [games, activeGameId],
   );
 
-  const activePlayerId = selectedPlayerId ?? bingoPlayers[0]?.id ?? null;
+  // Only show players who actually have a board on the selected game.
+  // This keeps archived games frozen — they list their original
+  // participants, not anyone added later.
+  const gamePlayerIdSet = useGameBoardPlayerIds(activeGameId);
+  const bingoPlayers = useMemo(
+    () =>
+      players.filter(
+        (p) => p.is_bingo_participant && gamePlayerIdSet.has(p.id),
+      ),
+    [players, gamePlayerIdSet],
+  );
+
+  // If the currently-selected player isn't in this game's board set,
+  // fall back to the first available player for this game.
+  const activePlayerId =
+    selectedPlayerId && gamePlayerIdSet.has(selectedPlayerId)
+      ? selectedPlayerId
+      : (bingoPlayers[0]?.id ?? null);
+
   const size = activeGame?.size ?? 5;
   const totalCells = size * size;
-  const isArchived = activeGame?.archived_at !== null;
+  const isArchived = activeGame ? activeGame.archived_at !== null : false;
 
-  const { cells, loading: boardLoading, updateCellText, toggleCellCompleted } =
-    useBingoBoard(activePlayerId, activeGameId);
+  const {
+    board,
+    cells: rawCells,
+    loading: boardLoading,
+    updateCellText,
+    toggleCellCompleted,
+  } = useBingoBoard(activePlayerId, activeGameId);
+
+  // Only trust cells when the loaded board matches the current selection
+  // AND every cell fits inside the current size. Anything else means we
+  // are mid-transition (stale data from the previous game/player).
+  const cells = useMemo(() => {
+    const matches =
+      board &&
+      board.player_id === activePlayerId &&
+      board.game_id === activeGameId;
+    if (!matches) return [] as BingoCell[];
+    return rawCells.filter((c) => c.row < size && c.col < size);
+  }, [board, rawCells, activePlayerId, activeGameId, size]);
 
   if (playersLoading || gamesLoading) {
     return <p className="text-center text-gray-500">Laster...</p>;

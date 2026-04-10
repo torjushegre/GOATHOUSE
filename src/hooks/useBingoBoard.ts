@@ -11,23 +11,33 @@ export function useBingoBoard(
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Clear previous state immediately so stale cells from the prior
+    // player/game never render under the new selection.
+    setBoard(null);
+    setCells([]);
+
     if (!playerId || !gameId) {
-      setBoard(null);
-      setCells([]);
       setLoading(false);
       return;
     }
 
     setLoading(true);
 
+    // Cancelled flag guards against a slower in-flight fetch finishing
+    // after a newer one has already replaced the state.
+    let cancelled = false;
+
     supabase
       .from("bingo_boards")
       .select("*")
       .eq("player_id", playerId)
       .eq("game_id", gameId)
-      .single()
+      .maybeSingle()
       .then(({ data: boardData }) => {
+        if (cancelled) return;
         if (!boardData) {
+          setBoard(null);
+          setCells([]);
           setLoading(false);
           return;
         }
@@ -40,10 +50,15 @@ export function useBingoBoard(
           .order("row")
           .order("col")
           .then(({ data: cellData }) => {
-            if (cellData) setCells(cellData);
+            if (cancelled) return;
+            setCells(cellData ?? []);
             setLoading(false);
           });
       });
+
+    return () => {
+      cancelled = true;
+    };
   }, [playerId, gameId]);
 
   // Realtime subscription for cell changes

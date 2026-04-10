@@ -94,3 +94,34 @@ export function useBingoGames() {
 
   return { games, loading, createGame, renameGame, archiveGame, refetch };
 }
+
+// Returns the set of player_ids that actually have a board on the given game.
+// Used to filter the player tabs so a newly-added player doesn't pollute
+// an older (archived) game they weren't part of.
+export function useGameBoardPlayerIds(gameId: string | null) {
+  const [playerIds, setPlayerIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!gameId) {
+      setPlayerIds(new Set());
+      return;
+    }
+
+    let cancelled = false;
+
+    supabase
+      .from("bingo_boards")
+      .select("player_id")
+      .eq("game_id", gameId)
+      .then(({ data }) => {
+        if (cancelled) return;
+        setPlayerIds(new Set((data ?? []).map((b) => b.player_id as string)));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [gameId]);
+
+  return playerIds;
+}
